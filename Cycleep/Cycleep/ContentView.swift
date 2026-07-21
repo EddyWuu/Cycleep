@@ -8,12 +8,14 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var alarmsViewModel = AlarmsViewModel()
+
     var body: some View {
         TabView {
-            SleepNowView()
+            SleepView()
                 .tabItem {
                     Image(systemName: "bed.double.fill")
-                    Text("Sleep Now")
+                    Text("Sleep")
                 }
 
             AlarmsView()
@@ -28,6 +30,7 @@ struct ContentView: View {
                     Text("Settings")
                 }
         }
+        .environmentObject(alarmsViewModel)
     }
 }
 
