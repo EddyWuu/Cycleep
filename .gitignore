@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+
+# Xcode - user-specific state (per-user, should never be committed)
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+
+# Xcode build output
+build/
+DerivedData/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# CocoaPods (uncomment if you don't want to commit Pods)
+# Pods/
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Accio dependency management
+Dependencies/
+.accio/
+
+# Injection / Playgrounds
+iOSInjectionProject/
+timeline.xctimeline
+playground.xcworkspace
