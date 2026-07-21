@@ -1,5 +1,5 @@
 //
-//  SleepCycle.swift
+//  SleepCycleModel.swift
 //  Cycleep
 //
 //  Sleep-cycle math and the option model used by the Sleep sub-tabs.
@@ -15,7 +15,7 @@ struct SleepCycleOption: Identifiable {
     /// The resulting time (a wake-up time or a bedtime depending on context).
     let time: Date
 
-    var durationMinutes: Int { cycles * SleepCycle.cycleMinutes }
+    var durationMinutes: Int { cycles * SleepCycleModel.cycleMinutes }
 
     var durationText: String {
         let hours = durationMinutes / 60
@@ -25,7 +25,7 @@ struct SleepCycleOption: Identifiable {
 }
 
 /// Central sleep-cycle constants and calculations.
-enum SleepCycle {
+enum SleepCycleModel {
     /// Length of one sleep cycle in minutes (1.5 hours).
     static let cycleMinutes = 90
     /// How many options to show in the lists.

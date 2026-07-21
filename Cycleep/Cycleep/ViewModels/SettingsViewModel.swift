@@ -12,5 +12,5 @@ import Combine
 final class SettingsViewModel: ObservableObject {
     @Published var notificationsEnabled: Bool = true
 
-    let cycleLengthMinutes: Int = SleepCycle.cycleMinutes
+    let cycleLengthMinutes: Int = SleepCycleModel.cycleMinutes
 }

@@ -20,7 +20,7 @@ struct AlarmsView: View {
                 } else {
                     List {
                         ForEach(alarmsViewModel.sortedAlarms) { alarm in
-                            AlarmRow(alarm: alarm) {
+                            AlarmRowView(alarm: alarm) {
                                 alarmsViewModel.toggle(alarm)
                             }
                         }

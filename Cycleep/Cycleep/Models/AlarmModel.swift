@@ -1,5 +1,5 @@
 //
-//  Alarm.swift
+//  AlarmModel.swift
 //  Cycleep
 //
 //  Model representing a single scheduled alarm.
@@ -14,7 +14,7 @@ enum AlarmKind: String, Codable {
 }
 
 /// A single alarm. Sound/snooze customization will be added later.
-struct Alarm: Identifiable, Codable, Equatable {
+struct AlarmModel: Identifiable, Codable, Equatable {
     let id: UUID
     var time: Date
     var isEnabled: Bool

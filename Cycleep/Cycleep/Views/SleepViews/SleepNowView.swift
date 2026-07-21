@@ -15,14 +15,14 @@ struct SleepNowView: View {
         List {
             Section {
                 ForEach(viewModel.options) { option in
-                    CycleOptionRow(option: option) {
+                    CycleOptionRowView(option: option) {
                         alarmsViewModel.addWakeAlarm(at: option.time, cycles: option.cycles)
                     }
                 }
             } header: {
                 Text("If you fall asleep now")
             } footer: {
-                Text("Each option wakes you at the end of a full \(SleepCycle.cycleMinutes)-minute sleep cycle.")
+                Text("Each option wakes you at the end of a full \(SleepCycleModel.cycleMinutes)-minute sleep cycle.")
             }
         }
         .listStyle(.insetGrouped)

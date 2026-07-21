@@ -23,7 +23,7 @@ struct SleepTimeView: View {
 
             Section("Wake up at") {
                 ForEach(viewModel.wakeOptions) { option in
-                    CycleOptionRow(option: option) {
+                    CycleOptionRowView(option: option) {
                         alarmsViewModel.addWakeAlarm(at: option.time, cycles: option.cycles)
                     }
                 }

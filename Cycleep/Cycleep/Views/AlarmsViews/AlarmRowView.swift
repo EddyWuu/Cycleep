@@ -1,5 +1,5 @@
 //
-//  AlarmRow.swift
+//  AlarmRowView.swift
 //  Cycleep
 //
 //  Row showing a single alarm with an enable/disable toggle.
@@ -7,8 +7,8 @@
 
 import SwiftUI
 
-struct AlarmRow: View {
-    let alarm: Alarm
+struct AlarmRowView: View {
+    let alarm: AlarmModel
     let onToggle: () -> Void
 
     var body: some View {
@@ -45,7 +45,7 @@ struct AlarmRow: View {
 
 #Preview {
     List {
-        AlarmRow(alarm: Alarm(time: Date(), label: "Wake up", kind: .wake, cycles: 5)) {}
-        AlarmRow(alarm: Alarm(time: Date(), label: "Bedtime", kind: .sleep, cycles: 5)) {}
+        AlarmRowView(alarm: AlarmModel(time: Date(), label: "Wake up", kind: .wake, cycles: 5)) {}
+        AlarmRowView(alarm: AlarmModel(time: Date(), label: "Bedtime", kind: .sleep, cycles: 5)) {}
     }
 }

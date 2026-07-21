@@ -14,7 +14,7 @@ final class SleepTimeViewModel: ObservableObject {
 
     /// Wake-up times for full cycles after the chosen bedtime.
     var wakeOptions: [SleepCycleOption] {
-        SleepCycle.wakeOptions(sleepTime: sleepTime)
+        SleepCycleModel.wakeOptions(sleepTime: sleepTime)
     }
 
     private static func defaultSleepTime() -> Date {

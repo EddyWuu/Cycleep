@@ -16,6 +16,6 @@ final class SleepNowViewModel: ObservableObject {
     /// Recompute options based on the current time.
     func refresh() {
         referenceDate = Date()
-        options = SleepCycle.wakeOptions(sleepTime: referenceDate)
+        options = SleepCycleModel.wakeOptions(sleepTime: referenceDate)
     }
 }

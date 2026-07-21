@@ -1,5 +1,5 @@
 //
-//  CycleOptionRow.swift
+//  CycleOptionRowView.swift
 //  Cycleep
 //
 //  Reusable row showing a time + cycle count with a "Set" button.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct CycleOptionRow: View {
+struct CycleOptionRowView: View {
     let option: SleepCycleOption
     let onSet: () -> Void
 
@@ -33,6 +33,6 @@ struct CycleOptionRow: View {
 
 #Preview {
     List {
-        CycleOptionRow(option: SleepCycleOption(cycles: 5, time: Date())) {}
+        CycleOptionRowView(option: SleepCycleOption(cycles: 5, time: Date())) {}
     }
 }
