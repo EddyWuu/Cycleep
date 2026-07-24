@@ -2,7 +2,7 @@
 //  SleepNowViewModel.swift
 //  Cycleep
 //
-//  Drives the "Sleep Now" sub-tab: wake-up options if you fall asleep now.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import Foundation

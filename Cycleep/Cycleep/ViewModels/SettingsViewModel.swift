@@ -2,7 +2,7 @@
 //  SettingsViewModel.swift
 //  Cycleep
 //
-//  Backing state for the Settings tab.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import Foundation

@@ -2,7 +2,7 @@
 //  SleepTimeViewModel.swift
 //  Cycleep
 //
-//  Drives the "Sleep Time" sub-tab: pick a bedtime, get wake-up options.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import Foundation

@@ -2,14 +2,14 @@
 //  WakeUpTimeView.swift
 //  Cycleep
 //
-//  Sub-tab: pick a wake-up time, choose a bedtime, and set both alarms.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import SwiftUI
 
 struct WakeUpTimeView: View {
-    @EnvironmentObject private var alarmsViewModel: AlarmsViewModel
     @StateObject private var viewModel = WakeUpTimeViewModel()
+    @State private var draft: AlarmDraft?
 
     var body: some View {
         List {
@@ -24,18 +24,22 @@ struct WakeUpTimeView: View {
             Section("Go to sleep at") {
                 ForEach(viewModel.sleepOptions) { option in
                     CycleOptionRowView(option: option) {
-                        alarmsViewModel.addSleepWakePair(sleepTime: option.time,
-                                                         wakeTime: viewModel.wakeTime,
-                                                         cycles: option.cycles)
+                        draft = .sleepWakePair(sleepTime: option.time,
+                                               wakeTime: viewModel.wakeTime,
+                                               cycles: option.cycles)
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .sheet(item: $draft) { draft in
+            AlarmConfigView(mode: .create(draft))
+        }
     }
 }
 
 #Preview {
     WakeUpTimeView()
         .environmentObject(AlarmsViewModel())
+        .environmentObject(AlarmAudioService())
 }

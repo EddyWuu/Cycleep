@@ -2,21 +2,21 @@
 //  SleepNowView.swift
 //  Cycleep
 //
-//  Sub-tab: wake-up options if you fall asleep right now.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import SwiftUI
 
 struct SleepNowView: View {
-    @EnvironmentObject private var alarmsViewModel: AlarmsViewModel
     @StateObject private var viewModel = SleepNowViewModel()
+    @State private var draft: AlarmDraft?
 
     var body: some View {
         List {
             Section {
                 ForEach(viewModel.options) { option in
                     CycleOptionRowView(option: option) {
-                        alarmsViewModel.addWakeAlarm(at: option.time, cycles: option.cycles)
+                        draft = .wake(time: option.time, cycles: option.cycles)
                     }
                 }
             } header: {
@@ -27,10 +27,14 @@ struct SleepNowView: View {
         }
         .listStyle(.insetGrouped)
         .onAppear { viewModel.refresh() }
+        .sheet(item: $draft) { draft in
+            AlarmConfigView(mode: .create(draft))
+        }
     }
 }
 
 #Preview {
     SleepNowView()
         .environmentObject(AlarmsViewModel())
+        .environmentObject(AlarmAudioService())
 }

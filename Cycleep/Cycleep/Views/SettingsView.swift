@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  Cycleep
 //
-//  Tab 3. App settings.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import SwiftUI

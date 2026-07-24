@@ -2,13 +2,14 @@
 //  AlarmsView.swift
 //  Cycleep
 //
-//  Tab 2. Lists all alarms created from the Sleep tab.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import SwiftUI
 
 struct AlarmsView: View {
     @EnvironmentObject private var alarmsViewModel: AlarmsViewModel
+    @State private var editingAlarm: AlarmModel?
 
     var body: some View {
         NavigationStack {
@@ -22,6 +23,8 @@ struct AlarmsView: View {
                         ForEach(alarmsViewModel.sortedAlarms) { alarm in
                             AlarmRowView(alarm: alarm) {
                                 alarmsViewModel.toggle(alarm)
+                            } onSelect: {
+                                editingAlarm = alarm
                             }
                         }
                         .onDelete { offsets in
@@ -36,6 +39,9 @@ struct AlarmsView: View {
                     EditButton()
                 }
             }
+            .sheet(item: $editingAlarm) { alarm in
+                AlarmConfigView(mode: .edit(alarm))
+            }
         }
     }
 }
@@ -43,4 +49,5 @@ struct AlarmsView: View {
 #Preview {
     AlarmsView()
         .environmentObject(AlarmsViewModel())
+        .environmentObject(AlarmAudioService())
 }

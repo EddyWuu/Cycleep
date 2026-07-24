@@ -2,7 +2,7 @@
 //  SleepView.swift
 //  Cycleep
 //
-//  Tab 1. Hosts three sub-tabs: Sleep Now, Wake Up Time, and Sleep Time.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import SwiftUI
@@ -12,6 +12,7 @@ struct SleepView: View {
         case sleepNow = "Sleep Now"
         case wakeUp = "Wake Up Time"
         case sleepTime = "Sleep Time"
+        case manual = "Manual"
 
         var id: String { rawValue }
     }
@@ -36,6 +37,8 @@ struct SleepView: View {
                     WakeUpTimeView()
                 case .sleepTime:
                     SleepTimeView()
+                case .manual:
+                    ManualAlarmView()
                 }
             }
             .navigationTitle("Sleep")

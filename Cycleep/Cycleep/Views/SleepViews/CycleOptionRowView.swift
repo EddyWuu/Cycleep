@@ -2,7 +2,7 @@
 //  CycleOptionRowView.swift
 //  Cycleep
 //
-//  Reusable row showing a time + cycle count with a "Set" button.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import SwiftUI
@@ -26,8 +26,12 @@ struct CycleOptionRowView: View {
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
+            // Let the surrounding row tap handle presentation instead of the button.
+            .allowsHitTesting(false)
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onSet)
     }
 }
 

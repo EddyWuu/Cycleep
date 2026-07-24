@@ -2,7 +2,7 @@
 //  SleepCycleModel.swift
 //  Cycleep
 //
-//  Sleep-cycle math and the option model used by the Sleep sub-tabs.
+//  Created by Edmond Wu on 2026-07-23.
 //
 
 import Foundation
