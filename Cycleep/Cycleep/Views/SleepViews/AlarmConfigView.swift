@@ -17,6 +17,16 @@ struct AlarmConfigView: View {
         _viewModel = StateObject(wrappedValue: AlarmConfigViewModel(mode: mode))
     }
 
+    /// Binds the preset menu to the view model, ignoring selections of "Custom".
+    private var presetBinding: Binding<RepeatPreset?> {
+        Binding(
+            get: { viewModel.activePreset },
+            set: { newValue in
+                if let preset = newValue { viewModel.setRepeatPreset(preset) }
+            }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -50,6 +60,43 @@ struct AlarmConfigView: View {
                         }
                     }
                     .pickerStyle(.menu)
+                }
+
+                Section {
+                    Picker("Repeat", selection: presetBinding) {
+                        Text("Custom").tag(RepeatPreset?.none)
+                        ForEach(RepeatPreset.allCases) { preset in
+                            Text(preset.rawValue).tag(RepeatPreset?.some(preset))
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    HStack(spacing: 8) {
+                        ForEach(Weekday.allCases) { day in
+                            Button {
+                                viewModel.toggleDay(day)
+                            } label: {
+                                Text(day.narrowName)
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(width: 34, height: 34)
+                                    .background(
+                                        Circle().fill(viewModel.repeatDays.contains(day)
+                                                      ? Color.accentColor
+                                                      : Color.secondary.opacity(0.15))
+                                    )
+                                    .foregroundStyle(viewModel.repeatDays.contains(day) ? .white : .primary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("Repeat")
+                } footer: {
+                    Text(viewModel.repeatDays.isEmpty
+                         ? "Fires once at the next occurrence."
+                         : "Repeats \(viewModel.repeatSummary).")
                 }
 
                 Section {

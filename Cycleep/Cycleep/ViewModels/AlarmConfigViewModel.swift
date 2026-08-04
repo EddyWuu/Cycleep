@@ -14,6 +14,16 @@ enum AlarmConfigMode {
     case edit(AlarmModel)
 }
 
+/// Quick repeat presets offered in the config sheet.
+enum RepeatPreset: String, CaseIterable, Identifiable {
+    case never = "Never"
+    case everyday = "Every Day"
+    case weekdays = "Weekdays"
+    case weekends = "Weekends"
+
+    var id: String { rawValue }
+}
+
 @MainActor
 final class AlarmConfigViewModel: ObservableObject {
     let mode: AlarmConfigMode
@@ -21,6 +31,7 @@ final class AlarmConfigViewModel: ObservableObject {
     @Published var selectedSound: AlarmSound
     @Published var snoozeMinutes: Int
     @Published var rampUpEnabled: Bool
+    @Published var repeatDays: Set<Weekday>
 
     /// Selectable snooze durations in minutes (0 = off).
     let snoozeOptions = [0, 5, 9, 10, 15, 20]
@@ -32,10 +43,12 @@ final class AlarmConfigViewModel: ObservableObject {
             self.selectedSound = .default
             self.snoozeMinutes = 9
             self.rampUpEnabled = true
+            self.repeatDays = []
         case let .edit(alarm):
             self.selectedSound = alarm.sound
             self.snoozeMinutes = alarm.snoozeMinutes
             self.rampUpEnabled = alarm.rampUpVolume
+            self.repeatDays = alarm.repeatDays
         }
     }
 
@@ -53,14 +66,53 @@ final class AlarmConfigViewModel: ObservableObject {
             alarmsViewModel.create(from: draft,
                                    sound: selectedSound,
                                    snoozeMinutes: snoozeMinutes,
-                                   rampUp: rampUpEnabled)
+                                   rampUp: rampUpEnabled,
+                                   repeatDays: repeatDays)
         case let .edit(alarm):
             var updated = alarm
             updated.soundName = selectedSound.rawValue
             updated.snoozeMinutes = snoozeMinutes
             updated.rampUpVolume = rampUpEnabled
+            updated.repeatDays = repeatDays
             alarmsViewModel.update(updated)
         }
+    }
+
+    /// Toggles a single day in the repeat selection.
+    func toggleDay(_ day: Weekday) {
+        if repeatDays.contains(day) {
+            repeatDays.remove(day)
+        } else {
+            repeatDays.insert(day)
+        }
+    }
+
+    /// Applies a preset repeat selection.
+    func setRepeatPreset(_ preset: RepeatPreset) {
+        switch preset {
+        case .never: repeatDays = []
+        case .everyday: repeatDays = Weekday.everyday
+        case .weekdays: repeatDays = Weekday.weekdays
+        case .weekends: repeatDays = Weekday.weekends
+        }
+    }
+
+    /// Currently matching preset, if the selection equals one.
+    var activePreset: RepeatPreset? {
+        if repeatDays.isEmpty { return .never }
+        if repeatDays == Weekday.everyday { return .everyday }
+        if repeatDays == Weekday.weekdays { return .weekdays }
+        if repeatDays == Weekday.weekends { return .weekends }
+        return nil
+    }
+
+    /// Human-readable repeat summary, e.g. "Weekdays".
+    var repeatSummary: String {
+        if repeatDays.isEmpty { return "Never" }
+        if repeatDays == Weekday.everyday { return "Every day" }
+        if repeatDays == Weekday.weekdays { return "Weekdays" }
+        if repeatDays == Weekday.weekends { return "Weekends" }
+        return repeatDays.sorted().map(\.shortName).joined(separator: ", ")
     }
 
     /// Human-readable description of which alarm(s) this affects.

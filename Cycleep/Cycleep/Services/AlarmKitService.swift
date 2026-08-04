@@ -6,6 +6,7 @@
 //
 
 import AlarmKit
+import ActivityKit
 import SwiftUI
 
 final class AlarmKitService {
@@ -33,24 +34,62 @@ final class AlarmKitService {
         let components = Calendar.current.dateComponents([.hour, .minute], from: alarm.time)
         let time = Alarm.Schedule.Relative.Time(hour: components.hour ?? 0,
                                                 minute: components.minute ?? 0)
-        let schedule: Alarm.Schedule = .relative(.init(time: time, repeats: .never))
+
+        // Repeating alarms use a weekly recurrence; otherwise fire once.
+        let schedule: Alarm.Schedule
+        if alarm.repeatDays.isEmpty {
+            schedule = .relative(.init(time: time, repeats: .never))
+        } else {
+            let days = alarm.repeatDays.sorted().map(Self.localeWeekday)
+            schedule = .relative(.init(time: time, repeats: .weekly(days)))
+        }
 
         let title = LocalizedStringResource(stringLiteral: alarm.label.isEmpty ? "Cycleep" : alarm.label)
+
+        // A snooze button drives AlarmKit's post-alert countdown.
+        let hasSnooze = alarm.snoozeMinutes > 0
+        let snoozeButton = hasSnooze
+            ? AlarmButton(text: "Snooze", textColor: .white, systemImageName: "zzz")
+            : nil
         // The system provides the stop button automatically.
         let alert = AlarmPresentation.Alert(title: title,
-                                            secondaryButton: nil,
-                                            secondaryButtonBehavior: nil)
+                                            secondaryButton: snoozeButton,
+                                            secondaryButtonBehavior: hasSnooze ? .countdown : nil)
         let presentation = AlarmPresentation(alert: alert)
         let attributes = AlarmAttributes(presentation: presentation,
                                          metadata: AlarmKitMetadataModel(),
                                          tintColor: .indigo)
 
-        let configuration = AlarmManager.AlarmConfiguration(schedule: schedule, attributes: attributes)
+        // postAlert is the snooze length; preAlert stays nil for a scheduled alarm.
+        let countdown = hasSnooze
+            ? Alarm.CountdownDuration(preAlert: nil, postAlert: TimeInterval(alarm.snoozeMinutes * 60))
+            : nil
+
+        let configuration = AlarmManager.AlarmConfiguration(
+            countdownDuration: countdown,
+            schedule: schedule,
+            attributes: attributes,
+            stopIntent: nil,
+            secondaryIntent: nil,
+            sound: .default)
 
         do {
             _ = try await manager.schedule(id: alarm.id, configuration: configuration)
         } catch {
             print("AlarmKitService: failed to schedule \(alarm.id): \(error)")
+        }
+    }
+
+    /// Maps our `Weekday` to AlarmKit's `Locale.Weekday`.
+    private static func localeWeekday(_ day: Weekday) -> Locale.Weekday {
+        switch day {
+        case .sunday: return .sunday
+        case .monday: return .monday
+        case .tuesday: return .tuesday
+        case .wednesday: return .wednesday
+        case .thursday: return .thursday
+        case .friday: return .friday
+        case .saturday: return .saturday
         }
     }
 

@@ -30,7 +30,7 @@ final class AlarmsViewModel: ObservableObject {
     // MARK: - Creation
 
     /// Creates the alarm(s) described by a draft, applying the chosen sound/snooze.
-    func create(from draft: AlarmDraft, sound: AlarmSound, snoozeMinutes: Int, rampUp: Bool) {
+    func create(from draft: AlarmDraft, sound: AlarmSound, snoozeMinutes: Int, rampUp: Bool, repeatDays: Set<Weekday>) {
         switch draft {
         case let .wake(time, cycles):
             let alarm = AlarmModel(time: time,
@@ -39,7 +39,8 @@ final class AlarmsViewModel: ObservableObject {
                                    soundName: sound.rawValue,
                                    snoozeMinutes: snoozeMinutes,
                                    rampUpVolume: rampUp,
-                                   cycles: cycles)
+                                   cycles: cycles,
+                                   repeatDays: repeatDays)
             add(alarm)
 
         case let .sleepWakePair(sleepTime, wakeTime, cycles):
@@ -49,14 +50,16 @@ final class AlarmsViewModel: ObservableObject {
                                      soundName: sound.rawValue,
                                      snoozeMinutes: snoozeMinutes,
                                      rampUpVolume: rampUp,
-                                     cycles: cycles)
+                                     cycles: cycles,
+                                     repeatDays: repeatDays)
             let wake = AlarmModel(time: wakeTime,
                                   label: "Wake up",
                                   kind: .wake,
                                   soundName: sound.rawValue,
                                   snoozeMinutes: snoozeMinutes,
                                   rampUpVolume: rampUp,
-                                  cycles: cycles)
+                                  cycles: cycles,
+                                  repeatDays: repeatDays)
             add(bedtime)
             add(wake)
 
@@ -67,7 +70,8 @@ final class AlarmsViewModel: ObservableObject {
                                    soundName: sound.rawValue,
                                    snoozeMinutes: snoozeMinutes,
                                    rampUpVolume: rampUp,
-                                   cycles: nil)
+                                   cycles: nil,
+                                   repeatDays: repeatDays)
             add(alarm)
         }
     }

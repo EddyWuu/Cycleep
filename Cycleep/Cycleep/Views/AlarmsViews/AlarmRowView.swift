@@ -31,6 +31,9 @@ struct AlarmRowView: View {
                             if let cycles = alarm.cycles {
                                 Text("· \(cycles) cycle\(cycles > 1 ? "s" : "")")
                             }
+                            if alarm.isRepeating {
+                                Text("· \(alarm.repeatSummary)")
+                            }
                             Text("· \(alarm.sound.displayName)")
                         }
                         .font(.caption)
