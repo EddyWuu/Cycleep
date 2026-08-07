@@ -34,7 +34,7 @@ struct AlarmConfigView: View {
                     ForEach(AlarmSound.allCases) { sound in
                         Button {
                             viewModel.selectedSound = sound
-                            audioService.preview(sound, rampUp: viewModel.rampUpEnabled)
+                            audioService.preview(sound)
                         } label: {
                             HStack {
                                 Label(sound.displayName, systemImage: sound.systemImage)

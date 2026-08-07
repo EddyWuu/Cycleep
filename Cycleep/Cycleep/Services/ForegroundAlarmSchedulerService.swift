@@ -22,8 +22,9 @@ import Combine
 ///   left to deliver the alarm on its own.
 @MainActor
 final class ForegroundAlarmSchedulerService: ObservableObject {
-    /// How long before the alarm the ramp-up begins (and how long the fade lasts).
-    private let leadTime: TimeInterval = 90
+    /// How long before the alarm the ramp-up begins. Matches the baked-in
+    /// ramp length of the sound files so the volume peaks right at alarm time.
+    private let leadTime: TimeInterval = AlarmAudioService.bakedRampDuration
 
     private var tasks: [Task<Void, Never>] = []
 
@@ -55,7 +56,7 @@ final class ForegroundAlarmSchedulerService: ObservableObject {
                     if Task.isCancelled { return }
                 }
 
-                audioService.play(sound, rampUp: rampUp, rampDuration: rampDuration, loops: -1)
+                audioService.play(sound, rampUp: rampUp, loops: -1)
 
                 // Play through the fade, then hand off to AlarmKit at the alarm time.
                 try? await Task.sleep(for: .seconds(rampDuration))

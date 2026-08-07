@@ -11,15 +11,22 @@ import Combine
 @MainActor
 final class AlarmsViewModel: ObservableObject {
     @Published private(set) var alarms: [AlarmModel] = []
+    /// A user-facing message when an alarm can't be scheduled (e.g. permission denied).
+    @Published var errorMessage: String?
+    /// A transient confirmation message (e.g. a test alarm was scheduled).
+    @Published var infoMessage: String?
 
     private let alarmKit = AlarmKitService()
     private let store = AlarmStoreService()
 
     init() {
         alarms = store.load()
-        // Re-arm AlarmKit for every enabled alarm so the fallback stays reliable
-        // even if the system dropped a fired one-time alarm while we were closed.
-        reconcileWithAlarmKit()
+        // Ask for permission up front so the very first alarm can be scheduled,
+        // then re-arm AlarmKit for every enabled alarm.
+        Task {
+            await alarmKit.requestAuthorization()
+            reconcileWithAlarmKit()
+        }
     }
 
     /// Alarms ordered by time of day.
@@ -112,6 +119,18 @@ final class AlarmsViewModel: ObservableObject {
         persist()
     }
 
+    /// Fires a countdown alarm after `seconds` to verify the alarm pipeline.
+    func scheduleTestAlarm(after seconds: TimeInterval = 10) {
+        Task {
+            do {
+                try await alarmKit.scheduleTest(after: seconds)
+                infoMessage = "An alarm will fire in about \(Int(seconds)) seconds. Lock the device or leave the app to confirm it works in the background."
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     // MARK: - Private
 
     private func add(_ alarm: AlarmModel) {
@@ -122,7 +141,13 @@ final class AlarmsViewModel: ObservableObject {
 
     private func scheduleBackup(_ alarm: AlarmModel) {
         guard alarm.isEnabled else { return }
-        Task { await alarmKit.schedule(alarm) }
+        Task {
+            do {
+                try await alarmKit.schedule(alarm)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     /// Re-schedules AlarmKit for all enabled alarms. Scheduling by the existing

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
+    @EnvironmentObject private var alarmsViewModel: AlarmsViewModel
 
     var body: some View {
         NavigationStack {
@@ -25,6 +26,18 @@ struct SettingsView: View {
                 Section("Notifications") {
                     Toggle("Enable notifications", isOn: $viewModel.notificationsEnabled)
                 }
+
+                Section {
+                    Button {
+                        alarmsViewModel.scheduleTestAlarm(after: 10)
+                    } label: {
+                        Label("Test alarm in 10 seconds", systemImage: "alarm.waves.left.and.right")
+                    }
+                } header: {
+                    Text("Developer")
+                } footer: {
+                    Text("Fires a one-off alarm 10 seconds from now to verify permissions and the alarm pipeline. Best tested on a physical device.")
+                }
             }
             .navigationTitle("Settings")
         }
@@ -33,4 +46,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .environmentObject(AlarmsViewModel())
 }

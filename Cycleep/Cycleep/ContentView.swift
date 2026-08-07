@@ -38,6 +38,20 @@ struct ContentView: View {
         .onAppear { rescheduleRampUp() }
         .onChange(of: scenePhase) { _, _ in rescheduleRampUp() }
         .onChange(of: alarmsViewModel.alarms) { _, _ in rescheduleRampUp() }
+        .alert("Alarm Problem",
+               isPresented: Binding(get: { alarmsViewModel.errorMessage != nil },
+                                    set: { if !$0 { alarmsViewModel.errorMessage = nil } })) {
+            Button("OK", role: .cancel) { alarmsViewModel.errorMessage = nil }
+        } message: {
+            Text(alarmsViewModel.errorMessage ?? "")
+        }
+        .alert("Test Alarm Set",
+               isPresented: Binding(get: { alarmsViewModel.infoMessage != nil },
+                                    set: { if !$0 { alarmsViewModel.infoMessage = nil } })) {
+            Button("OK", role: .cancel) { alarmsViewModel.infoMessage = nil }
+        } message: {
+            Text(alarmsViewModel.infoMessage ?? "")
+        }
     }
 
     /// Refreshes the in-app ramp-up timers. AlarmKit remains the authoritative

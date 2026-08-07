@@ -9,12 +9,44 @@ import AlarmKit
 import ActivityKit
 import SwiftUI
 
+/// Errors surfaced to the UI when an alarm can't be scheduled.
+enum AlarmKitError: LocalizedError {
+    case notAuthorized
+    case scheduleFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notAuthorized:
+            return "Cycleep isn't allowed to set alarms. Enable it in Settings > Cycleep."
+        case let .scheduleFailed(message):
+            return "Couldn't schedule the alarm: \(message)"
+        }
+    }
+}
+
 final class AlarmKitService {
     private var manager: AlarmManager { AlarmManager.shared }
+
+    /// The current authorization state without prompting.
+    var authorizationState: AlarmManager.AuthorizationState {
+        manager.authorizationState
+    }
 
     /// Requests permission to schedule alarms if not already granted.
     @discardableResult
     func requestAuthorization() async -> Bool {
+        // Already decided? Don't prompt again.
+        switch manager.authorizationState {
+        case .authorized:
+            return true
+        case .denied:
+            return false
+        case .notDetermined:
+            break
+        @unknown default:
+            break
+        }
+
         do {
             let state = try await manager.requestAuthorization()
             return state == .authorized
@@ -24,11 +56,12 @@ final class AlarmKitService {
         }
     }
 
-    /// Schedules a one-time alarm mirroring the given app alarm.
-    func schedule(_ alarm: AlarmModel) async {
+    /// Schedules an alarm mirroring the given app alarm.
+    /// Throws `AlarmKitError` so callers can surface failures to the user.
+    func schedule(_ alarm: AlarmModel) async throws {
         guard await requestAuthorization() else {
             print("AlarmKitService: not authorized; skipping schedule for \(alarm.id)")
-            return
+            throw AlarmKitError.notAuthorized
         }
 
         let components = Calendar.current.dateComponents([.hour, .minute], from: alarm.time)
@@ -45,39 +78,97 @@ final class AlarmKitService {
         }
 
         let title = LocalizedStringResource(stringLiteral: alarm.label.isEmpty ? "Cycleep" : alarm.label)
-
-        // A snooze button drives AlarmKit's post-alert countdown.
         let hasSnooze = alarm.snoozeMinutes > 0
-        let snoozeButton = hasSnooze
-            ? AlarmButton(text: "Snooze", textColor: .white, systemImageName: "zzz")
-            : nil
-        // The system provides the stop button automatically.
-        let alert = AlarmPresentation.Alert(title: title,
+        let snoozeSeconds = hasSnooze ? TimeInterval(alarm.snoozeMinutes * 60) : nil
+
+        let configuration = Self.makeConfiguration(title: title,
+                                                   schedule: schedule,
+                                                   snoozeSeconds: snoozeSeconds,
+                                                   countdownSeconds: nil,
+                                                   soundName: alarm.sound.fileName)
+
+        do {
+            _ = try await manager.schedule(id: alarm.id, configuration: configuration)
+            print("AlarmKitService: scheduled \(alarm.id) for \(alarm.nextFireDate)")
+        } catch {
+            print("AlarmKitService: failed to schedule \(alarm.id): \(error)")
+            throw AlarmKitError.scheduleFailed(error.localizedDescription)
+        }
+    }
+
+    /// Schedules a one-off countdown alarm that fires after `seconds`.
+    /// Used to verify the end-to-end alarm pipeline quickly.
+    func scheduleTest(after seconds: TimeInterval) async throws {
+        guard await requestAuthorization() else {
+            throw AlarmKitError.notAuthorized
+        }
+
+        let title = LocalizedStringResource(stringLiteral: "Cycleep Test Alarm")
+        let configuration = Self.makeConfiguration(title: title,
+                                                   schedule: nil,
+                                                   snoozeSeconds: nil,
+                                                   countdownSeconds: seconds,
+                                                   soundName: AlarmSound.default.fileName)
+
+        let id = UUID()
+        do {
+            _ = try await manager.schedule(id: id, configuration: configuration)
+            print("AlarmKitService: scheduled test alarm \(id) in \(seconds)s")
+        } catch {
+            print("AlarmKitService: failed to schedule test alarm: \(error)")
+            throw AlarmKitError.scheduleFailed(error.localizedDescription)
+        }
+    }
+
+    /// Builds an alarm configuration with a stop button and optional snooze/countdown.
+    private static func makeConfiguration(title: LocalizedStringResource,
+                                          schedule: Alarm.Schedule?,
+                                          snoozeSeconds: TimeInterval?,
+                                          countdownSeconds: TimeInterval?,
+                                          soundName: String?) -> AlarmManager.AlarmConfiguration<AlarmKitMetadataModel> {
+        // AlarmKit requires an explicit stop button; the system draws it in the alert.
+        let stopButton = AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.circle")
+
+        let alert: AlarmPresentation.Alert
+        if let snoozeSeconds, snoozeSeconds > 0 {
+            let snoozeButton = AlarmButton(text: "Snooze", textColor: .white, systemImageName: "zzz")
+            alert = AlarmPresentation.Alert(title: title,
+                                            stopButton: stopButton,
                                             secondaryButton: snoozeButton,
-                                            secondaryButtonBehavior: hasSnooze ? .countdown : nil)
+                                            secondaryButtonBehavior: .countdown)
+        } else {
+            alert = AlarmPresentation.Alert(title: title, stopButton: stopButton)
+        }
+
         let presentation = AlarmPresentation(alert: alert)
         let attributes = AlarmAttributes(presentation: presentation,
                                          metadata: AlarmKitMetadataModel(),
                                          tintColor: .indigo)
 
-        // postAlert is the snooze length; preAlert stays nil for a scheduled alarm.
-        let countdown = hasSnooze
-            ? Alarm.CountdownDuration(preAlert: nil, postAlert: TimeInterval(alarm.snoozeMinutes * 60))
-            : nil
+        // preAlert drives a countdown-to-fire; postAlert is the snooze length.
+        let countdown: Alarm.CountdownDuration?
+        if countdownSeconds != nil || snoozeSeconds != nil {
+            countdown = Alarm.CountdownDuration(preAlert: countdownSeconds, postAlert: snoozeSeconds)
+        } else {
+            countdown = nil
+        }
 
-        let configuration = AlarmManager.AlarmConfiguration(
+        // Use the chosen bundled sound (its volume ramp is baked into the file);
+        // fall back to the system sound if none is supplied.
+        let alertSound: AlertConfiguration.AlertSound
+        if let soundName {
+            alertSound = .named(soundName)
+        } else {
+            alertSound = .default
+        }
+
+        return AlarmManager.AlarmConfiguration(
             countdownDuration: countdown,
             schedule: schedule,
             attributes: attributes,
             stopIntent: nil,
             secondaryIntent: nil,
-            sound: .default)
-
-        do {
-            _ = try await manager.schedule(id: alarm.id, configuration: configuration)
-        } catch {
-            print("AlarmKitService: failed to schedule \(alarm.id): \(error)")
-        }
+            sound: alertSound)
     }
 
     /// Maps our `Weekday` to AlarmKit's `Locale.Weekday`.
