@@ -41,5 +41,4 @@ struct SleepTimeView: View {
 #Preview {
     SleepTimeView()
         .environmentObject(AlarmsViewModel())
-        .environmentObject(AlarmAudioService())
 }

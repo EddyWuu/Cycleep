@@ -30,7 +30,6 @@ final class AlarmConfigViewModel: ObservableObject {
 
     @Published var selectedSound: AlarmSound
     @Published var snoozeMinutes: Int
-    @Published var rampUpEnabled: Bool
     @Published var repeatDays: Set<Weekday>
 
     /// Selectable snooze durations in minutes (0 = off).
@@ -42,12 +41,10 @@ final class AlarmConfigViewModel: ObservableObject {
         case .create:
             self.selectedSound = .default
             self.snoozeMinutes = 9
-            self.rampUpEnabled = true
             self.repeatDays = []
         case let .edit(alarm):
             self.selectedSound = alarm.sound
             self.snoozeMinutes = alarm.snoozeMinutes
-            self.rampUpEnabled = alarm.rampUpVolume
             self.repeatDays = alarm.repeatDays
         }
     }
@@ -66,13 +63,11 @@ final class AlarmConfigViewModel: ObservableObject {
             alarmsViewModel.create(from: draft,
                                    sound: selectedSound,
                                    snoozeMinutes: snoozeMinutes,
-                                   rampUp: rampUpEnabled,
                                    repeatDays: repeatDays)
         case let .edit(alarm):
             var updated = alarm
             updated.soundName = selectedSound.rawValue
             updated.snoozeMinutes = snoozeMinutes
-            updated.rampUpVolume = rampUpEnabled
             updated.repeatDays = repeatDays
             alarmsViewModel.update(updated)
         }

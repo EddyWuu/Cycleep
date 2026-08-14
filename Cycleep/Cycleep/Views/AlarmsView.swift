@@ -49,5 +49,4 @@ struct AlarmsView: View {
 #Preview {
     AlarmsView()
         .environmentObject(AlarmsViewModel())
-        .environmentObject(AlarmAudioService())
 }

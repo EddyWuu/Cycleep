@@ -46,5 +46,4 @@ struct ManualAlarmView: View {
 #Preview {
     ManualAlarmView()
         .environmentObject(AlarmsViewModel())
-        .environmentObject(AlarmAudioService())
 }

@@ -41,5 +41,4 @@ struct WakeUpTimeView: View {
 #Preview {
     WakeUpTimeView()
         .environmentObject(AlarmsViewModel())
-        .environmentObject(AlarmAudioService())
 }

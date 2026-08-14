@@ -10,7 +10,6 @@ import SwiftUI
 struct AlarmConfigView: View {
     @StateObject private var viewModel: AlarmConfigViewModel
     @EnvironmentObject private var alarmsViewModel: AlarmsViewModel
-    @EnvironmentObject private var audioService: AlarmAudioService
     @Environment(\.dismiss) private var dismiss
 
     init(mode: AlarmConfigMode) {
@@ -30,20 +29,15 @@ struct AlarmConfigView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Sound") {
+                Section {
                     ForEach(AlarmSound.allCases) { sound in
                         Button {
                             viewModel.selectedSound = sound
-                            audioService.preview(sound)
                         } label: {
                             HStack {
                                 Label(sound.displayName, systemImage: sound.systemImage)
                                     .foregroundStyle(.primary)
                                 Spacer()
-                                if audioService.previewingSound == sound {
-                                    Image(systemName: "speaker.wave.2.fill")
-                                        .foregroundStyle(.secondary)
-                                }
                                 if viewModel.selectedSound == sound {
                                     Image(systemName: "checkmark")
                                         .foregroundStyle(.tint)
@@ -51,6 +45,10 @@ struct AlarmConfigView: View {
                             }
                         }
                     }
+                } header: {
+                    Text("Sound")
+                } footer: {
+                    Text("Every sound fades in from silent to full over about a minute for a gentle wake-up.")
                 }
 
                 Section("Snooze") {
@@ -100,12 +98,6 @@ struct AlarmConfigView: View {
                 }
 
                 Section {
-                    Toggle("Ramp up volume", isOn: $viewModel.rampUpEnabled)
-                } footer: {
-                    Text("Fades the sound in gradually so you wake up gently. AlarmKit still fires a backup alert if the app isn't running.")
-                }
-
-                Section {
                     Text(viewModel.summary)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -116,13 +108,11 @@ struct AlarmConfigView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        audioService.stop()
                         dismiss()
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        audioService.stop()
                         viewModel.apply(using: alarmsViewModel)
                         // Confirm the save with a success haptic, then close the
                         // sheet to signal the alarm was saved.
@@ -132,7 +122,6 @@ struct AlarmConfigView: View {
                     .fontWeight(.semibold)
                 }
             }
-            .onDisappear { audioService.stop() }
         }
     }
 }
@@ -140,5 +129,4 @@ struct AlarmConfigView: View {
 #Preview {
     AlarmConfigView(mode: .create(.wake(time: Date(), cycles: 5)))
         .environmentObject(AlarmsViewModel())
-        .environmentObject(AlarmAudioService())
 }

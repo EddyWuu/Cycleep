@@ -192,4 +192,22 @@ final class AlarmKitService {
             print("AlarmKitService: failed to cancel \(id): \(error)")
         }
     }
+
+    /// Emits the set of currently active AlarmKit alarm ids whenever they change.
+    /// Used to detect when a one-time alarm has fired and been dismissed.
+    static func alarmIDUpdates() -> AsyncStream<Set<UUID>> {
+        AsyncStream { continuation in
+            let task = Task {
+                do {
+                    for try await alarms in AlarmManager.shared.alarmUpdates {
+                        continuation.yield(Set(alarms.map(\.id)))
+                    }
+                } catch {
+                    print("AlarmKitService: alarm updates ended: \(error)")
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 }

@@ -67,8 +67,6 @@ struct AlarmModel: Identifiable, Codable, Equatable {
     var soundName: String
     /// Snooze length in minutes. `0` disables snooze.
     var snoozeMinutes: Int
-    /// Whether playback should fade the volume in gradually.
-    var rampUpVolume: Bool
     /// Number of sleep cycles this alarm is based on, if any.
     var cycles: Int?
     /// Days the alarm repeats on. Empty means it fires once (next occurrence).
@@ -81,7 +79,6 @@ struct AlarmModel: Identifiable, Codable, Equatable {
          kind: AlarmKind = .wake,
          soundName: String = AlarmSound.default.rawValue,
          snoozeMinutes: Int = 9,
-         rampUpVolume: Bool = true,
          cycles: Int? = nil,
          repeatDays: Set<Weekday> = []) {
         self.id = id
@@ -91,14 +88,13 @@ struct AlarmModel: Identifiable, Codable, Equatable {
         self.kind = kind
         self.soundName = soundName
         self.snoozeMinutes = snoozeMinutes
-        self.rampUpVolume = rampUpVolume
         self.cycles = cycles
         self.repeatDays = repeatDays
     }
 
     // Custom decoding so alarms persisted before newer fields existed still load.
     private enum CodingKeys: String, CodingKey {
-        case id, time, isEnabled, label, kind, soundName, snoozeMinutes, rampUpVolume, cycles, repeatDays
+        case id, time, isEnabled, label, kind, soundName, snoozeMinutes, cycles, repeatDays
     }
 
     init(from decoder: Decoder) throws {
@@ -110,7 +106,6 @@ struct AlarmModel: Identifiable, Codable, Equatable {
         kind = try c.decodeIfPresent(AlarmKind.self, forKey: .kind) ?? .wake
         soundName = try c.decodeIfPresent(String.self, forKey: .soundName) ?? AlarmSound.default.rawValue
         snoozeMinutes = try c.decodeIfPresent(Int.self, forKey: .snoozeMinutes) ?? 9
-        rampUpVolume = try c.decodeIfPresent(Bool.self, forKey: .rampUpVolume) ?? true
         cycles = try c.decodeIfPresent(Int.self, forKey: .cycles)
         repeatDays = try c.decodeIfPresent(Set<Weekday>.self, forKey: .repeatDays) ?? []
     }

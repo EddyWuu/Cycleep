@@ -9,9 +9,8 @@ import Foundation
 
 /// A built-in alarm sound. The raw value doubles as the stored identifier.
 ///
-/// To make ramp-up playback audible, add a matching audio file to the app
-/// bundle (e.g. `radar.caf`). Missing files are handled gracefully by
-/// `AlarmAudioService`.
+/// Each sound has a 60-second volume ramp baked into its bundled `.wav` file,
+/// so AlarmKit plays a gentle fade-in even though it can't fade volume itself.
 enum AlarmSound: String, CaseIterable, Identifiable, Codable {
     case radar = "Radar"
     case chimes = "Chimes"
@@ -23,7 +22,7 @@ enum AlarmSound: String, CaseIterable, Identifiable, Codable {
 
     var displayName: String { rawValue }
 
-    /// Bundled audio file name used by `AlarmAudioService` for ramp-up playback.
+    /// Bundled audio file name AlarmKit plays via `AlertSound.named(...)`.
     var fileName: String { rawValue.lowercased() + ".wav" }
 
     /// SF Symbol shown next to the sound in the picker.
