@@ -124,6 +124,9 @@ struct AlarmConfigView: View {
                     Button("Save") {
                         audioService.stop()
                         viewModel.apply(using: alarmsViewModel)
+                        // Confirm the save with a success haptic, then close the
+                        // sheet to signal the alarm was saved.
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                         dismiss()
                     }
                     .fontWeight(.semibold)

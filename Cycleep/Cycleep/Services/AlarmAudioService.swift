@@ -11,39 +11,66 @@ import Combine
 /// Plays alarm sounds using AVAudioPlayer for the in-app experience and the
 /// sound preview in the configuration sheet.
 ///
-/// The gradual volume ramp is **baked into the sound files themselves** (they
-/// start quiet and rise over ~20s). This is what lets the ramp also work on the
-/// real, locked-screen alarm, which AlarmKit plays at a fixed system volume and
-/// can't fade programmatically (see `AlarmKitService`).
+/// The gradual volume ramp is applied **programmatically here** by fading the
+/// player's volume from barely audible up to full over `rampDuration`. This
+/// only runs while the app is alive. When the app is closed, AlarmKit plays the
+/// same (constant-volume) file at the fixed system volume with no ramp — that's
+/// the intended backup behaviour (see `AlarmKitService`).
 final class AlarmAudioService: NSObject, ObservableObject {
     /// Sound currently being previewed, if any (used to toggle play/stop in UI).
     @Published private(set) var previewingSound: AlarmSound?
 
     private var player: AVAudioPlayer?
+    private var previewStopTimer: Timer?
+    private var rampTimer: Timer?
 
-    /// How long the baked-in volume ramp lasts in each sound file, in seconds.
-    /// Playback started past this point begins at full volume.
-    static let bakedRampDuration: TimeInterval = 20
+    /// How long the programmatic volume ramp takes to go from quiet to full.
+    static let rampDuration: TimeInterval = 60
+
+    /// Starting volume for the ramp (~ -44 dB): barely audible.
+    private static let rampMinVolume: Float = 0.006
+
+    /// How long a tap-to-hear preview plays before auto-stopping.
+    private static let previewDuration: TimeInterval = 6
 
     // MARK: - Preview
 
     /// Plays a short, full-volume sample so the user can identify the sound
-    /// quickly (skips the long baked ramp).
+    /// quickly. Previews never ramp.
     func preview(_ sound: AlarmSound) {
         if previewingSound == sound {
             stop()
             return
         }
-        play(sound, rampUp: false, loops: 0)
+        play(sound, rampUp: false, loops: -1)
         previewingSound = sound
+
+        // Auto-stop so the preview stays a brief sample.
+        previewStopTimer?.invalidate()
+        previewStopTimer = Timer.scheduledTimer(withTimeInterval: Self.previewDuration,
+                                                repeats: false) { [weak self] _ in
+            self?.stop()
+        }
+    }
+
+    /// Plays the full ramp-up fade (barely audible → max over `rampDuration`) so
+    /// the gradual wake experience can be heard on demand, then auto-stops.
+    func previewRamp(_ sound: AlarmSound) {
+        play(sound, rampUp: true, loops: -1)
+        previewingSound = sound
+        previewStopTimer?.invalidate()
+        previewStopTimer = Timer.scheduledTimer(withTimeInterval: Self.rampDuration + 3,
+                                                repeats: false) { [weak self] _ in
+            self?.stop()
+        }
     }
 
     // MARK: - Playback
 
     /// Starts playing `sound`.
     /// - Parameters:
-    ///   - rampUp: when `true`, playback starts at the beginning so the baked
-    ///     volume ramp is heard; when `false`, it starts in the loud sustain region.
+    ///   - rampUp: when `true`, the volume fades in from barely audible to full
+    ///     over `rampDuration`; when `false`, it plays at full volume immediately.
     ///   - loops: additional repeats; use a negative value to loop forever.
     func play(_ sound: AlarmSound, rampUp: Bool, loops: Int = -1) {
         stop()
@@ -58,23 +85,24 @@ final class AlarmAudioService: NSObject, ObservableObject {
             let player = try AVAudioPlayer(contentsOf: url)
             player.delegate = self
             player.numberOfLoops = loops
-            player.volume = 1
+            player.volume = rampUp ? Self.rampMinVolume : 1
             player.prepareToPlay()
-
-            if !rampUp {
-                // Skip the baked ramp: jump into the full-volume sustain region.
-                let start = min(Self.bakedRampDuration + 1, max(0, player.duration - 0.5))
-                player.currentTime = start
-            }
-
             player.play()
             self.player = player
+
+            if rampUp {
+                startVolumeRamp()
+            }
         } catch {
             print("AlarmAudioService: failed to play \(sound.displayName): \(error)")
         }
     }
 
     func stop() {
+        rampTimer?.invalidate()
+        rampTimer = nil
+        previewStopTimer?.invalidate()
+        previewStopTimer = nil
         player?.stop()
         player = nil
         previewingSound = nil
@@ -82,6 +110,30 @@ final class AlarmAudioService: NSObject, ObservableObject {
     }
 
     // MARK: - Helpers
+
+    /// Fades the player volume exponentially from `rampMinVolume` to full over
+    /// `rampDuration` using a repeating timer (barely audible → max).
+    private func startVolumeRamp() {
+        let start = Date()
+        let minVol = Self.rampMinVolume
+        let duration = Self.rampDuration
+        rampTimer?.invalidate()
+        rampTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] timer in
+            guard let self, let player = self.player else {
+                timer.invalidate()
+                return
+            }
+            let elapsed = Date().timeIntervalSince(start)
+            if elapsed >= duration {
+                player.volume = 1
+                timer.invalidate()
+                return
+            }
+            // Exponential curve for a natural "barely audible → loud" swell.
+            let fraction = Float(elapsed / duration)
+            player.volume = minVol * pow(1 / minVol, fraction)
+        }
+    }
 
     private func configureSession() throws {
         let session = AVAudioSession.sharedInstance()

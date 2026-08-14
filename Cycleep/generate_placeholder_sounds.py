@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Generate placeholder alarm sounds (mono 16-bit WAV) for Cycleep.
 
-Each sound has a DRAMATIC, SLOW volume ramp baked directly into the audio:
-it starts near-silent and rises exponentially to full volume over ~20s, then
-sustains. Baking the ramp into the file is the only way to get a gradual
-volume increase on the real (locked-screen) alarm, because AlarmKit plays the
-sound at a fixed system volume and can't fade it programmatically.
+These are short, constant-volume loops. The volume ramp is NOT baked in — it
+is applied at playback time by AVAudioPlayer while the app is running. When the
+app is closed, AlarmKit plays these at the fixed system volume (no ramp), which
+is the intended backup behaviour.
 """
 
 import math
@@ -16,25 +15,17 @@ import wave
 SAMPLE_RATE = 44100
 OUT_DIR = os.path.join(os.path.dirname(__file__), "Cycleep", "Resources", "Sounds")
 
-DURATION = 28.0      # total length; AlarmKit loops this while ringing
-RAMP_TIME = 20.0     # seconds spent rising from quiet to full
-MIN_AMP = 0.03       # starting amplitude (~ -30 dB): gentle but audible
-MAX_AMP = 1.0        # full amplitude at the end of the ramp
-
-
-def ramp_gain(t):
-    if t >= RAMP_TIME:
-        return MAX_AMP
-    return MIN_AMP * (MAX_AMP / MIN_AMP) ** (t / RAMP_TIME)
+DURATION = 6.0       # short loop; AlarmKit and AVAudioPlayer repeat it while ringing
 
 
 def edge(i, total):
+    # Tiny 5ms attack/release only, to avoid clicks. No long fades — volume is
+    # constant so AVAudioPlayer can ramp it programmatically.
     a = int(SAMPLE_RATE * 0.005)
-    r = int(SAMPLE_RATE * 0.15)
     if i < a:
         return i / a
-    if i > total - r:
-        return (total - i) / r
+    if i > total - a:
+        return (total - i) / a
     return 1.0
 
 
@@ -62,7 +53,7 @@ def build(fn):
     out = []
     for i in range(total):
         t = i / SAMPLE_RATE
-        out.append(fn(t) * ramp_gain(t) * edge(i, total))
+        out.append(fn(t) * edge(i, total))
     return out
 
 
