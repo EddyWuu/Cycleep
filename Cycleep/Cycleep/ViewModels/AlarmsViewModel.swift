@@ -176,6 +176,18 @@ final class AlarmsViewModel: ObservableObject {
         persist()
     }
 
+    /// Renames a folder by updating the `groupName` of all its member alarms.
+    func renameGroup(_ group: AlarmDisplayGroup, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = trimmed.isEmpty ? "Sleep Schedule" : trimmed
+        var changed = false
+        for index in alarms.indices where alarms[index].groupID?.uuidString == group.id {
+            alarms[index].groupName = name
+            changed = true
+        }
+        if changed { persist() }
+    }
+
     /// Delete using offsets from a (possibly sorted) list shown in the UI.
     func delete(at offsets: IndexSet, in displayed: [AlarmModel]) {
         let ids = offsets.map { displayed[$0].id }

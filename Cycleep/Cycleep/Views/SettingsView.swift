@@ -40,6 +40,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .cycleepListBackground()
         }
     }
 }

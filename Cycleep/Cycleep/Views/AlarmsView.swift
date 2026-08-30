@@ -10,68 +10,122 @@ import SwiftUI
 struct AlarmsView: View {
     @EnvironmentObject private var alarmsViewModel: AlarmsViewModel
     @State private var editingAlarm: AlarmModel?
+    @State private var isEditing = false
+    @State private var renamingGroup: AlarmDisplayGroup?
+    @State private var renameText = ""
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 14),
+        GridItem(.flexible(), spacing: 14)
+    ]
+
+    /// Folder entries (bedtime + wake-up pairs), preserving display order.
+    private var folders: [AlarmDisplayGroup] {
+        alarmsViewModel.displayGroups.filter(\.isFolder)
+    }
+
+    /// Standalone alarms that fill the two-column grid, in display order.
+    private var singles: [AlarmModel] {
+        alarmsViewModel.displayGroups
+            .filter { !$0.isFolder }
+            .flatMap(\.alarms)
+    }
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                Theme.backgroundGradient.ignoresSafeArea()
+
                 if alarmsViewModel.alarms.isEmpty {
-                    ContentUnavailableView("No Alarms",
-                                           systemImage: "alarm",
-                                           description: Text("Set an alarm from the Sleep tab to see it here."))
+                    emptyState
                 } else {
-                    List {
-                        ForEach(alarmsViewModel.displayGroups) { group in
-                            if let name = group.name {
-                                Section {
-                                    ForEach(group.alarms) { alarm in
-                                        row(for: alarm)
-                                    }
-                                    .onDelete { offsets in
-                                        alarmsViewModel.delete(at: offsets, in: group.alarms)
-                                    }
-                                } header: {
-                                    Label(name, systemImage: "moon.zzz.fill")
-                                        .textCase(nil)
-                                }
-                            } else {
-                                ForEach(group.alarms) { alarm in
-                                    row(for: alarm)
-                                }
-                                .onDelete { offsets in
-                                    alarmsViewModel.delete(at: offsets, in: group.alarms)
-                                }
-                            }
-                        }
-                    }
+                    content
                 }
             }
             .navigationTitle("Alarms")
             .toolbar {
                 if !alarmsViewModel.alarms.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
-                        EditButton()
+                        Button(isEditing ? "Done" : "Edit") {
+                            withAnimation(.easeInOut(duration: 0.2)) { isEditing.toggle() }
+                        }
+                        .foregroundStyle(Theme.textPrimary)
                     }
                 }
             }
             .sheet(item: $editingAlarm) { alarm in
                 AlarmConfigView(mode: .edit(alarm))
             }
+            .alert("Rename Folder", isPresented: renameAlertBinding) {
+                TextField("Folder name", text: $renameText)
+                Button("Save") {
+                    if let group = renamingGroup {
+                        alarmsViewModel.renameGroup(group, to: renameText)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Give this bedtime + wake-up pair a name.")
+            }
         }
     }
 
-    private func row(for alarm: AlarmModel) -> some View {
-        AlarmRowView(alarm: alarm) {
-            alarmsViewModel.toggle(alarm)
-        } onSelect: {
-            editingAlarm = alarm
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                alarmsViewModel.delete(alarm)
-            } label: {
-                Label("Delete", systemImage: "trash")
+    private var content: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                ForEach(folders) { group in
+                    FolderCardView(
+                        group: group,
+                        editing: isEditing,
+                        onRename: { startRename(group) },
+                        onToggle: { alarmsViewModel.toggle($0) },
+                        onSelect: { editingAlarm = $0 },
+                        onDelete: { alarmsViewModel.delete($0) }
+                    )
+                }
+
+                if !singles.isEmpty {
+                    LazyVGrid(columns: columns, spacing: 14) {
+                        ForEach(singles) { alarm in
+                            AlarmBoxView(
+                                alarm: alarm,
+                                editing: isEditing,
+                                onToggle: { alarmsViewModel.toggle(alarm) },
+                                onSelect: { editingAlarm = alarm },
+                                onDelete: { alarmsViewModel.delete(alarm) }
+                            )
+                        }
+                    }
+                }
             }
+            .padding()
         }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "alarm")
+                .font(.system(size: 52))
+                .foregroundStyle(Theme.accent)
+            Text("No Alarms")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Set an alarm from the Sleep tab to see it here.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(40)
+    }
+
+    private var renameAlertBinding: Binding<Bool> {
+        Binding(get: { renamingGroup != nil },
+                set: { if !$0 { renamingGroup = nil } })
+    }
+
+    private func startRename(_ group: AlarmDisplayGroup) {
+        renameText = group.name ?? ""
+        renamingGroup = group
     }
 }
 
