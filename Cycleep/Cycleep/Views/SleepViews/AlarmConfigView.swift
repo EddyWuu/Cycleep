@@ -96,10 +96,10 @@ struct AlarmConfigView: View {
                                     .frame(width: 34, height: 34)
                                     .background(
                                         Circle().fill(viewModel.repeatDays.contains(day)
-                                                      ? Color.accentColor
-                                                      : Color.secondary.opacity(0.15))
+                                                      ? Theme.accent
+                                                      : Theme.surfaceRaised)
                                     )
-                                    .foregroundStyle(viewModel.repeatDays.contains(day) ? .white : .primary)
+                                    .foregroundStyle(viewModel.repeatDays.contains(day) ? Theme.background : Theme.textPrimary)
                             }
                             .buttonStyle(.plain)
                         }
@@ -122,6 +122,7 @@ struct AlarmConfigView: View {
             }
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .cycleepListBackground()
             .onDisappear { audioService.stop() }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

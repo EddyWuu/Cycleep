@@ -10,8 +10,9 @@ import Foundation
 /// A built-in alarm sound. The raw value doubles as the stored identifier.
 ///
 /// Each sound ships as two bundled files:
-/// * `<name>.wav` — the alarm file, with a 60-second volume ramp baked in, so
-///   AlarmKit plays a gentle fade-in even though it can't fade volume itself.
+/// * `<name>.caf` — the alarm file (IMA4 CAF). Opens with a short silent intro,
+///   then a 60s ramp to full, then a long full-volume sustain. AlarmKit loops it,
+///   so the sleeper hears the gentle ramp once and then it stays loud.
 /// * `<name>_preview.wav` — a short, constant-volume clip used only for the
 ///   in-app "tap to audition" preview (no ramp — a preview is a quick showcase).
 enum AlarmSound: String, CaseIterable, Identifiable, Codable {
@@ -40,7 +41,7 @@ enum AlarmSound: String, CaseIterable, Identifiable, Codable {
     private var baseName: String { rawValue.lowercased() }
 
     /// Ramped alarm file AlarmKit plays via `AlertSound.named(...)`.
-    var fileName: String { baseName + ".wav" }
+    var fileName: String { baseName + ".caf" }
 
     /// Constant-volume preview clip resource name (no extension) for AVAudioPlayer.
     var previewResourceName: String { baseName + "_preview" }

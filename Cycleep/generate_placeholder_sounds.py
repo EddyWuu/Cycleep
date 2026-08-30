@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Generate placeholder alarm sounds (mono 16-bit WAV) for Cycleep.
+"""Generate placeholder alarm sounds for Cycleep.
 
 Two variants are written per sound:
 
-  * ``<name>.wav`` — the ALARM file. A 60s volume ramp is BAKED into the audio:
-    it starts effectively silent and rises exponentially to full volume, then
-    sustains. Baking the ramp in is the only way to get a gradual wake-up on the
-    real alarm, because Cycleep plays alarms with AlarmKit (fixed system volume,
-    can't fade programmatically).
+  * ``<name>.caf`` — the ALARM file (IMA4-compressed CAF). It opens with a short
+    stretch of true silence, then a 60s exponential ramp from ~silent to full,
+    then a LONG full-volume sustain. AlarmKit loops this whole file while
+    ringing, so the long loud tail means the sleeper hears the quiet ramp only
+    once at the very start — after that it stays loud (the loop back to the ramp
+    is minutes away). Baking the ramp in is the only way to get a gradual
+    wake-up, because Cycleep plays alarms with AlarmKit (fixed system volume,
+    can't fade programmatically). The file is compressed to IMA4 CAF (~4:1) so
+    the long duration stays small; iOS alarm sounds support IMA4 CAF.
 
   * ``<name>_preview.wav`` — the PREVIEW file. A short, CONSTANT full-volume clip
     used only for the in-app "tap to audition" preview in the config sheet. No
@@ -18,25 +22,45 @@ can't be bundled. Drop real assets in (same names, ramp baked into the alarm
 variant) to replace them.
 """
 
+import array
 import math
 import os
 import struct
+import subprocess
 import wave
 
 SAMPLE_RATE = 22050          # plenty for alarm tones; keeps ramp files small
 OUT_DIR = os.path.join(os.path.dirname(__file__), "Cycleep", "Resources", "Sounds")
 
-ALARM_DURATION = 66.0        # AlarmKit loops this while ringing (60s ramp + tail)
-PREVIEW_DURATION = 4.0       # short showcase clip
+# Alarm file layout (AlarmKit loops this while ringing):
+#   [SILENCE_INTRO] true digital silence, so any buffer priming / volume
+#                   normalization iOS applies to the FIRST alert lands on
+#                   silence instead of making the fade-in start loud.
+#   [RAMP_TIME]     exponential rise from ~silent to full — the ONE gentle
+#                   wake-up ramp the sleeper hears.
+#   [SUSTAIN]       a long stretch held at full volume. Because AlarmKit loops
+#                   the whole file, a long loud tail means the quiet ramp is
+#                   only ever hit once at the very start; after that it just
+#                   stays loud (the loop back to the ramp is minutes away).
+# The finished WAV is converted to IMA4-compressed CAF so the long file stays
+# small (~4:1). iOS alarm sounds support IMA4 CAF.
+SILENCE_INTRO = 2.0          # seconds of true silence at the very start
 RAMP_TIME = 60.0             # seconds spent rising from silent to full
-MIN_AMP = 0.003              # starting amplitude (~ -50 dB): effectively silent
+SUSTAIN = 180.0              # seconds held at full volume before it could loop
+ALARM_DURATION = SILENCE_INTRO + RAMP_TIME + SUSTAIN
+PREVIEW_DURATION = 4.0       # short showcase clip
+MIN_AMP = 0.002              # starting amplitude (~ -54 dB): effectively silent
 MAX_AMP = 1.0                # full amplitude at the end of the ramp
 
 
 def ramp_gain(t):
-    if t >= RAMP_TIME:
+    # True silence during the intro.
+    if t < SILENCE_INTRO:
+        return 0.0
+    r = t - SILENCE_INTRO
+    if r >= RAMP_TIME:
         return MAX_AMP
-    return MIN_AMP * (MAX_AMP / MIN_AMP) ** (t / RAMP_TIME)
+    return MIN_AMP * (MAX_AMP / MIN_AMP) ** (r / RAMP_TIME)
 
 
 def edge(i, total):
@@ -50,19 +74,13 @@ def edge(i, total):
     return 1.0
 
 
-def write_wav(name, samples):
-    os.makedirs(OUT_DIR, exist_ok=True)
-    path = os.path.join(OUT_DIR, name)
+def write_wav(path, samples):
+    """Write 16-bit mono PCM WAV. `samples` is an array('h') of int16."""
     with wave.open(path, "w") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(SAMPLE_RATE)
-        frames = bytearray()
-        for s in samples:
-            v = max(-1.0, min(1.0, s))
-            frames += struct.pack("<h", int(v * 32767))
-        w.writeframes(bytes(frames))
-    print("wrote", os.path.basename(path), f"({len(samples)/SAMPLE_RATE:.1f}s)")
+        w.writeframes(samples.tobytes())
 
 
 def tone(freq, t):
@@ -70,12 +88,18 @@ def tone(freq, t):
 
 
 def build(fn, duration, ramped):
+    """Render the sound to an array('h') of clamped int16 samples."""
     total = int(SAMPLE_RATE * duration)
-    out = []
+    out = array.array("h", bytes(2 * total))  # preallocate
     for i in range(total):
         t = i / SAMPLE_RATE
         gain = ramp_gain(t) if ramped else MAX_AMP
-        out.append(fn(t) * gain * edge(i, total))
+        v = fn(t) * gain * edge(i, total)
+        if v > 1.0:
+            v = 1.0
+        elif v < -1.0:
+            v = -1.0
+        out[i] = int(v * 32767)
     return out
 
 
@@ -224,8 +248,28 @@ SOUNDS = [
 ]
 
 
+def convert_to_caf(wav_path, caf_path):
+    """Compress a WAV to IMA4 CAF (supported by iOS alarm sounds, ~4:1)."""
+    subprocess.run(
+        ["afconvert", "-f", "caff", "-d", "ima4", wav_path, caf_path],
+        check=True,
+    )
+
+
 if __name__ == "__main__":
+    os.makedirs(OUT_DIR, exist_ok=True)
     for name, fn in SOUNDS:
-        write_wav(f"{name}.wav", build(fn, ALARM_DURATION, ramped=True))
-        write_wav(f"{name}_preview.wav", build(fn, PREVIEW_DURATION, ramped=False))
+        # Alarm file: long ramp+sustain rendered to WAV, then compressed to CAF.
+        wav_tmp = os.path.join(OUT_DIR, f"{name}.wav")
+        caf_out = os.path.join(OUT_DIR, f"{name}.caf")
+        write_wav(wav_tmp, build(fn, ALARM_DURATION, ramped=True))
+        convert_to_caf(wav_tmp, caf_out)
+        os.remove(wav_tmp)  # keep only the compressed alarm file
+        print(f"wrote {name}.caf ({ALARM_DURATION:.0f}s, "
+              f"{os.path.getsize(caf_out) // 1024} KB)")
+
+        # Preview file: short, constant-volume WAV played in-app by AVAudioPlayer.
+        preview = os.path.join(OUT_DIR, f"{name}_preview.wav")
+        write_wav(preview, build(fn, PREVIEW_DURATION, ramped=False))
+
     print(f"done — {len(SOUNDS)} sounds ({len(SOUNDS) * 2} files)")

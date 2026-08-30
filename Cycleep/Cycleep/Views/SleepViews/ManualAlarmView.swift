@@ -32,11 +32,13 @@ struct ManualAlarmView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Theme.accent)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
         }
         .listStyle(.insetGrouped)
+        .cycleepListBackground()
         .sheet(item: $draft) { draft in
             AlarmConfigView(mode: .create(draft))
         }
