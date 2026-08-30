@@ -32,6 +32,11 @@ final class AlarmKitService {
         manager.authorizationState
     }
 
+    /// Whether alarms are currently authorized (without prompting).
+    var isAuthorized: Bool {
+        manager.authorizationState == .authorized
+    }
+
     /// Requests permission to schedule alarms if not already granted.
     @discardableResult
     func requestAuthorization() async -> Bool {

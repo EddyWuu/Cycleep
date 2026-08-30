@@ -26,6 +26,9 @@ struct AlarmsView: View {
                                     ForEach(group.alarms) { alarm in
                                         row(for: alarm)
                                     }
+                                    .onDelete { offsets in
+                                        alarmsViewModel.delete(at: offsets, in: group.alarms)
+                                    }
                                 } header: {
                                     Label(name, systemImage: "moon.zzz.fill")
                                         .textCase(nil)
@@ -34,12 +37,22 @@ struct AlarmsView: View {
                                 ForEach(group.alarms) { alarm in
                                     row(for: alarm)
                                 }
+                                .onDelete { offsets in
+                                    alarmsViewModel.delete(at: offsets, in: group.alarms)
+                                }
                             }
                         }
                     }
                 }
             }
             .navigationTitle("Alarms")
+            .toolbar {
+                if !alarmsViewModel.alarms.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        EditButton()
+                    }
+                }
+            }
             .sheet(item: $editingAlarm) { alarm in
                 AlarmConfigView(mode: .edit(alarm))
             }

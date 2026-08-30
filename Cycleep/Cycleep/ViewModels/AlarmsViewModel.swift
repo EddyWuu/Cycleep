@@ -22,19 +22,17 @@ final class AlarmsViewModel: ObservableObject {
     /// AlarmKit ids seen active on the previous update, used to detect when a
     /// one-time alarm has fired and been dismissed (so we can switch it off).
     private var previouslyActiveIDs: Set<UUID> = []
+    /// Whether the one-time launch reconciliation has run yet.
+    private var didLaunchReconcile = false
 
     init() {
         alarms = store.load()
-        // Ask for permission up front so the very first alarm can be scheduled,
-        // then re-arm AlarmKit for every enabled alarm.
-        Task {
-            await alarmKit.requestAuthorization()
-            reconcileWithAlarmKit()
-        }
-        // Watch AlarmKit so one-time alarms turn themselves off after firing.
+        // Resolve authorization first, then use AlarmKit's first snapshot to
+        // reconcile our list on launch and to react to alarms firing afterwards.
         Task { [weak self] in
+            await self?.alarmKit.requestAuthorization()
             for await activeIDs in AlarmKitService.alarmIDUpdates() {
-                self?.handleActiveAlarms(activeIDs)
+                self?.handleAlarmUpdate(activeIDs)
             }
         }
     }
@@ -206,12 +204,44 @@ final class AlarmsViewModel: ObservableObject {
         persist()
     }
 
+    /// Routes each AlarmKit snapshot: the first one reconciles our list on
+    /// launch; later ones detect one-time alarms that fired and switch them off.
+    private func handleAlarmUpdate(_ activeIDs: Set<UUID>) {
+        if !didLaunchReconcile {
+            didLaunchReconcile = true
+            reconcileOnLaunch(knownIDs: activeIDs)
+        } else {
+            handleActiveAlarms(activeIDs)
+        }
+        previouslyActiveIDs = activeIDs
+    }
+
+    /// Reconciles our saved alarms against AlarmKit's known set on launch.
+    /// Repeating alarms are re-armed (idempotent). A one-time alarm that AlarmKit
+    /// no longer knows about has already fired (possibly while the app was closed),
+    /// so it's switched off instead of being re-scheduled.
+    private func reconcileOnLaunch(knownIDs: Set<UUID>) {
+        let authorized = alarmKit.isAuthorized
+        var changed = false
+        for index in alarms.indices where alarms[index].isEnabled {
+            let alarm = alarms[index]
+            if alarm.isRepeating {
+                scheduleBackup(alarm)
+            } else if authorized && !knownIDs.contains(alarm.id) {
+                // One-time alarm already fired (or was lost) → turn it off.
+                alarms[index].isEnabled = false
+                changed = true
+            }
+            // A one-time alarm still known to AlarmKit stays scheduled as-is.
+        }
+        if changed { persist() }
+    }
+
     /// Reacts to AlarmKit's active-alarm list. When a one-time alarm disappears
     /// (it fired and was dismissed), switch it off in our list. Repeating alarms
     /// stay scheduled in AlarmKit, so they remain on.
     private func handleActiveAlarms(_ activeIDs: Set<UUID>) {
         let disappeared = previouslyActiveIDs.subtracting(activeIDs)
-        previouslyActiveIDs = activeIDs
         guard !disappeared.isEmpty else { return }
 
         var changed = false
@@ -234,14 +264,6 @@ final class AlarmsViewModel: ObservableObject {
             } catch {
                 errorMessage = error.localizedDescription
             }
-        }
-    }
-
-    /// Re-schedules AlarmKit for all enabled alarms. Scheduling by the existing
-    /// id is idempotent, so this safely keeps the fallback in sync on launch.
-    private func reconcileWithAlarmKit() {
-        for alarm in alarms where alarm.isEnabled {
-            scheduleBackup(alarm)
         }
     }
 
