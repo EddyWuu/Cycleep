@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AlarmConfigView: View {
     @StateObject private var viewModel: AlarmConfigViewModel
+    @StateObject private var audioService = AlarmAudioService()
     @EnvironmentObject private var alarmsViewModel: AlarmsViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -33,11 +34,17 @@ struct AlarmConfigView: View {
                     ForEach(AlarmSound.allCases) { sound in
                         Button {
                             viewModel.selectedSound = sound
+                            audioService.togglePreview(sound)
                         } label: {
                             HStack {
                                 Label(sound.displayName, systemImage: sound.systemImage)
                                     .foregroundStyle(.primary)
                                 Spacer()
+                                if audioService.playingSound == sound {
+                                    Image(systemName: "speaker.wave.2.fill")
+                                        .foregroundStyle(.secondary)
+                                        .transition(.opacity)
+                                }
                                 if viewModel.selectedSound == sound {
                                     Image(systemName: "checkmark")
                                         .foregroundStyle(.tint)
@@ -48,7 +55,7 @@ struct AlarmConfigView: View {
                 } header: {
                     Text("Sound")
                 } footer: {
-                    Text("Every sound fades in from silent to full over about a minute for a gentle wake-up.")
+                    Text("Tap a sound to preview it — previews play at full volume. The actual alarm fades in from silent to full over about a minute for a gentle wake-up.")
                 }
 
                 Section("Snooze") {
@@ -105,14 +112,17 @@ struct AlarmConfigView: View {
             }
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .onDisappear { audioService.stop() }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
+                        audioService.stop()
                         dismiss()
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        audioService.stop()
                         viewModel.apply(using: alarmsViewModel)
                         // Confirm the save with a success haptic, then close the
                         // sheet to signal the alarm was saved.
