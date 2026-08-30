@@ -32,6 +32,7 @@ struct WakeUpTimeView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .cycleepListBackground()
         .sheet(item: $draft) { draft in
             AlarmConfigView(mode: .create(draft))
         }

@@ -26,6 +26,7 @@ struct SleepNowView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .cycleepListBackground()
         .onAppear { viewModel.refresh() }
         .sheet(item: $draft) { draft in
             AlarmConfigView(mode: .create(draft))
