@@ -44,14 +44,65 @@ final class AlarmsViewModel: ObservableObject {
         alarms.sorted { $0.time < $1.time }
     }
 
+    /// The Alarms list organized for display: standalone alarms and grouped
+    /// "folders" (e.g. a bedtime + wake-up pair), ordered by earliest time.
+    var displayGroups: [AlarmDisplayGroup] {
+        var byGroup: [UUID: [AlarmModel]] = [:]
+        var singles: [AlarmModel] = []
+        for alarm in alarms {
+            if let gid = alarm.groupID {
+                byGroup[gid, default: []].append(alarm)
+            } else {
+                singles.append(alarm)
+            }
+        }
+
+        var result: [AlarmDisplayGroup] = []
+
+        for (gid, members) in byGroup {
+            let sorted = members.sorted(by: Self.bedtimeFirst)
+            if sorted.count > 1 {
+                let name = sorted.first(where: { !$0.groupName.isEmpty })?.groupName ?? "Sleep Schedule"
+                let earliest = sorted.map(\.time).min() ?? Date()
+                result.append(AlarmDisplayGroup(id: gid.uuidString,
+                                                name: name,
+                                                alarms: sorted,
+                                                sortDate: earliest))
+            } else if let only = sorted.first {
+                // A pair whose partner was deleted falls back to a standalone row.
+                result.append(AlarmDisplayGroup(id: only.id.uuidString,
+                                                name: nil,
+                                                alarms: [only],
+                                                sortDate: only.time))
+            }
+        }
+
+        for alarm in singles {
+            result.append(AlarmDisplayGroup(id: alarm.id.uuidString,
+                                            name: nil,
+                                            alarms: [alarm],
+                                            sortDate: alarm.time))
+        }
+
+        return result.sorted { $0.sortDate < $1.sortDate }
+    }
+
+    /// Sort order within a folder: bedtime before wake-up, then by time.
+    private static func bedtimeFirst(_ a: AlarmModel, _ b: AlarmModel) -> Bool {
+        if a.kind != b.kind { return a.kind == .sleep }
+        return a.time < b.time
+    }
+
     // MARK: - Creation
 
-    /// Creates the alarm(s) described by a draft, applying the chosen sound/snooze.
-    func create(from draft: AlarmDraft, sound: AlarmSound, snoozeMinutes: Int, repeatDays: Set<Weekday>) {
+    /// Creates the alarm(s) described by a draft, applying the chosen name/sound/snooze.
+    func create(from draft: AlarmDraft, name: String, sound: AlarmSound, snoozeMinutes: Int, repeatDays: Set<Weekday>) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+
         switch draft {
         case let .wake(time, cycles):
             let alarm = AlarmModel(time: time,
-                                   label: "Wake up",
+                                   label: trimmedName.isEmpty ? "Wake up" : trimmedName,
                                    kind: .wake,
                                    soundName: sound.rawValue,
                                    snoozeMinutes: snoozeMinutes,
@@ -60,26 +111,36 @@ final class AlarmsViewModel: ObservableObject {
             add(alarm)
 
         case let .sleepWakePair(sleepTime, wakeTime, cycles):
+            // Both alarms share a group id so the Alarms tab shows them in one folder.
+            let groupID = UUID()
+            let groupName = trimmedName.isEmpty ? "Sleep Schedule" : trimmedName
             let bedtime = AlarmModel(time: sleepTime,
                                      label: "Bedtime",
                                      kind: .sleep,
                                      soundName: sound.rawValue,
                                      snoozeMinutes: snoozeMinutes,
                                      cycles: cycles,
-                                     repeatDays: repeatDays)
+                                     repeatDays: repeatDays,
+                                     groupID: groupID,
+                                     groupName: groupName)
             let wake = AlarmModel(time: wakeTime,
                                   label: "Wake up",
                                   kind: .wake,
                                   soundName: sound.rawValue,
                                   snoozeMinutes: snoozeMinutes,
                                   cycles: cycles,
-                                  repeatDays: repeatDays)
+                                  repeatDays: repeatDays,
+                                  groupID: groupID,
+                                  groupName: groupName)
             add(bedtime)
             add(wake)
 
         case let .manual(time, label):
+            let finalName = trimmedName.isEmpty
+                ? (label.isEmpty ? "Alarm" : label)
+                : trimmedName
             let alarm = AlarmModel(time: time,
-                                   label: label.isEmpty ? "Alarm" : label,
+                                   label: finalName,
                                    kind: .wake,
                                    soundName: sound.rawValue,
                                    snoozeMinutes: snoozeMinutes,

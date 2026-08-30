@@ -20,27 +20,43 @@ struct AlarmsView: View {
                                            description: Text("Set an alarm from the Sleep tab to see it here."))
                 } else {
                     List {
-                        ForEach(alarmsViewModel.sortedAlarms) { alarm in
-                            AlarmRowView(alarm: alarm) {
-                                alarmsViewModel.toggle(alarm)
-                            } onSelect: {
-                                editingAlarm = alarm
+                        ForEach(alarmsViewModel.displayGroups) { group in
+                            if let name = group.name {
+                                Section {
+                                    ForEach(group.alarms) { alarm in
+                                        row(for: alarm)
+                                    }
+                                } header: {
+                                    Label(name, systemImage: "moon.zzz.fill")
+                                        .textCase(nil)
+                                }
+                            } else {
+                                ForEach(group.alarms) { alarm in
+                                    row(for: alarm)
+                                }
                             }
-                        }
-                        .onDelete { offsets in
-                            alarmsViewModel.delete(at: offsets, in: alarmsViewModel.sortedAlarms)
                         }
                     }
                 }
             }
             .navigationTitle("Alarms")
-            .toolbar {
-                if !alarmsViewModel.alarms.isEmpty {
-                    EditButton()
-                }
-            }
             .sheet(item: $editingAlarm) { alarm in
                 AlarmConfigView(mode: .edit(alarm))
+            }
+        }
+    }
+
+    private func row(for alarm: AlarmModel) -> some View {
+        AlarmRowView(alarm: alarm) {
+            alarmsViewModel.toggle(alarm)
+        } onSelect: {
+            editingAlarm = alarm
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                alarmsViewModel.delete(alarm)
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }

@@ -31,6 +31,7 @@ final class AlarmConfigViewModel: ObservableObject {
     @Published var selectedSound: AlarmSound
     @Published var snoozeMinutes: Int
     @Published var repeatDays: Set<Weekday>
+    @Published var name: String
 
     /// Selectable snooze durations in minutes (0 = off).
     let snoozeOptions = [0, 5, 9, 10, 15, 20]
@@ -38,14 +39,21 @@ final class AlarmConfigViewModel: ObservableObject {
     init(mode: AlarmConfigMode) {
         self.mode = mode
         switch mode {
-        case .create:
+        case let .create(draft):
             self.selectedSound = .default
             self.snoozeMinutes = 9
             self.repeatDays = []
+            // Pre-fill the name from a manual draft's label, if any.
+            if case let .manual(_, label) = draft {
+                self.name = label
+            } else {
+                self.name = ""
+            }
         case let .edit(alarm):
             self.selectedSound = alarm.sound
             self.snoozeMinutes = alarm.snoozeMinutes
             self.repeatDays = alarm.repeatDays
+            self.name = alarm.label
         }
     }
 
@@ -56,16 +64,31 @@ final class AlarmConfigViewModel: ObservableObject {
         }
     }
 
+    /// Whether the name field names a folder (pair) rather than a single alarm.
+    var isNamingFolder: Bool {
+        if case let .create(draft) = mode, case .sleepWakePair = draft { return true }
+        return false
+    }
+
+    /// Section title for the name field.
+    var nameSectionTitle: String { isNamingFolder ? "Folder Name" : "Name" }
+
+    /// Placeholder text for the name field.
+    var namePlaceholder: String { isNamingFolder ? "Sleep Schedule" : "Alarm name" }
+
     /// Applies the chosen settings by creating or updating alarm(s).
     func apply(using alarmsViewModel: AlarmsViewModel) {
         switch mode {
         case let .create(draft):
             alarmsViewModel.create(from: draft,
+                                   name: name,
                                    sound: selectedSound,
                                    snoozeMinutes: snoozeMinutes,
                                    repeatDays: repeatDays)
         case let .edit(alarm):
             var updated = alarm
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { updated.label = trimmed }
             updated.soundName = selectedSound.rawValue
             updated.snoozeMinutes = snoozeMinutes
             updated.repeatDays = repeatDays

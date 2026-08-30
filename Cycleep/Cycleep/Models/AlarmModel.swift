@@ -71,6 +71,11 @@ struct AlarmModel: Identifiable, Codable, Equatable {
     var cycles: Int?
     /// Days the alarm repeats on. Empty means it fires once (next occurrence).
     var repeatDays: Set<Weekday>
+    /// Identifier shared by alarms created together (e.g. a bedtime + wake-up
+    /// pair). `nil` for standalone alarms. Used to group them in a folder.
+    var groupID: UUID?
+    /// Display name of the group/folder this alarm belongs to, if grouped.
+    var groupName: String
 
     init(id: UUID = UUID(),
          time: Date,
@@ -80,7 +85,9 @@ struct AlarmModel: Identifiable, Codable, Equatable {
          soundName: String = AlarmSound.default.rawValue,
          snoozeMinutes: Int = 9,
          cycles: Int? = nil,
-         repeatDays: Set<Weekday> = []) {
+         repeatDays: Set<Weekday> = [],
+         groupID: UUID? = nil,
+         groupName: String = "") {
         self.id = id
         self.time = time
         self.isEnabled = isEnabled
@@ -90,11 +97,13 @@ struct AlarmModel: Identifiable, Codable, Equatable {
         self.snoozeMinutes = snoozeMinutes
         self.cycles = cycles
         self.repeatDays = repeatDays
+        self.groupID = groupID
+        self.groupName = groupName
     }
 
     // Custom decoding so alarms persisted before newer fields existed still load.
     private enum CodingKeys: String, CodingKey {
-        case id, time, isEnabled, label, kind, soundName, snoozeMinutes, cycles, repeatDays
+        case id, time, isEnabled, label, kind, soundName, snoozeMinutes, cycles, repeatDays, groupID, groupName
     }
 
     init(from decoder: Decoder) throws {
@@ -108,7 +117,12 @@ struct AlarmModel: Identifiable, Codable, Equatable {
         snoozeMinutes = try c.decodeIfPresent(Int.self, forKey: .snoozeMinutes) ?? 9
         cycles = try c.decodeIfPresent(Int.self, forKey: .cycles)
         repeatDays = try c.decodeIfPresent(Set<Weekday>.self, forKey: .repeatDays) ?? []
+        groupID = try c.decodeIfPresent(UUID.self, forKey: .groupID)
+        groupName = try c.decodeIfPresent(String.self, forKey: .groupName) ?? ""
     }
+
+    /// Whether this alarm belongs to a folder/group.
+    var isGrouped: Bool { groupID != nil }
 
     /// The selected sound, falling back to the default if unknown.
     var sound: AlarmSound {

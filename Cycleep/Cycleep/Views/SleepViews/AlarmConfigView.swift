@@ -31,6 +31,16 @@ struct AlarmConfigView: View {
         NavigationStack {
             Form {
                 Section {
+                    TextField(viewModel.namePlaceholder, text: $viewModel.name)
+                } header: {
+                    Text(viewModel.nameSectionTitle)
+                } footer: {
+                    if viewModel.isNamingFolder {
+                        Text("Names the folder that holds this bedtime + wake-up pair in the Alarms tab.")
+                    }
+                }
+
+                Section {
                     ForEach(AlarmSound.allCases) { sound in
                         Button {
                             viewModel.selectedSound = sound
